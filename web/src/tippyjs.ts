@@ -5,6 +5,7 @@ import tippy, {delegate} from "tippy.js";
 import render_tooltip_templates from "../templates/tooltip_templates.hbs";
 
 import {$t} from "./i18n";
+import * as popovers from "./popovers";
 import {user_settings} from "./user_settings";
 
 // For tooltips without data-tippy-content, we use the HTML content of
@@ -502,8 +503,22 @@ export function initialize(): void {
     });
 
     delegate("body", {
-        target: "#user_info_popover .status-emoji",
+        target: ".user-card-status-text .status-emoji",
         appendTo: () => document.body,
+    });
+
+    delegate("body", {
+        target: ".status-emoji-name",
+        placement: "bottom",
+        delay: INSTANT_HOVER_DELAY,
+        appendTo: () => document.body,
+        onShow() {
+            popovers.hide_all();
+        },
+
+        onHidden(instance) {
+            instance.destroy();
+        },
     });
 
     delegate("body", {
