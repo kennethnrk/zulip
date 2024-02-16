@@ -1,5 +1,4 @@
 import * as Sentry from "@sentry/browser";
-import _ from "lodash";
 
 import {page_params} from "./page_params";
 import {current_user, realm} from "./state_data";
@@ -32,15 +31,6 @@ export function shouldCreateSpanForRequest(url: string): boolean {
 }
 
 if (page_params.server_sentry_dsn) {
-    const url_matches = [/^\//];
-    if (document.currentScript instanceof HTMLScriptElement) {
-        url_matches.push(
-            new RegExp("^" + _.escapeRegExp(new URL(".", document.currentScript.src).href)),
-        );
-    }
-    if (realm.realm_uri !== undefined) {
-        url_matches.push(new RegExp("^" + _.escapeRegExp(realm.realm_uri) + "/"));
-    }
     const sentry_key =
         // No parameter is the portico pages, empty string is the empty realm
         page_params.realm_sentry_key === undefined
@@ -86,7 +76,6 @@ if (page_params.server_sentry_dsn) {
         release: "zulip-server@" + ZULIP_VERSION,
         integrations: [
             new Sentry.BrowserTracing({
-                tracePropagationTargets: url_matches,
                 startTransactionOnLocationChange: false,
                 beforeNavigate(context) {
                     return {
@@ -98,20 +87,20 @@ if (page_params.server_sentry_dsn) {
                 shouldCreateSpanForRequest,
             }),
         ],
-        allowUrls: url_matches,
         sampleRate: page_params.server_sentry_sample_rate ?? 0,
         tracesSampler(samplingContext) {
             const base_rate = page_params.server_sentry_trace_rate ?? 0;
             const name = samplingContext.transactionContext.name;
             return base_rate * (sample_rates.get(name) ?? 1);
         },
-        initialScope: {
-            tags: {
+        initialScope(scope) {
+            scope.setTags({
                 realm: sentry_key,
                 user_role: user_info.role ?? "Browser",
                 server_version: realm.zulip_version,
-            },
-            user: user_info,
+            });
+            scope.setUser(user_info);
+            return scope;
         },
     });
 } else {
